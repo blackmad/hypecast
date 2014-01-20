@@ -337,7 +337,7 @@ class HypePodGenerator():
 
     if args.feedonly:
       self.voice = 'feedonly'
-    self.output_dir = os.path.join('hypecasts', self.mode, self.voice)
+    self.output_dir = os.path.join(args.basedir, self.mode, self.voice)
     if not os.path.exists(self.output_dir):
       os.makedirs(self.output_dir)
 
@@ -366,6 +366,7 @@ def main():
   parser.add_argument('--when', '-w', nargs='?', help='when to fetch popular', choices=['lastweek', 'noremix', 'today', '3day'], default='lastweek')
   parser.add_argument('--voice', '-v', help='what voice to use', default='Ava', choices=['Ava', 'Allison', 'Google'])
   parser.add_argument('--user', '-u', nargs='?', help='user for loved mode')
+  parser.add_argument('--basedir', '-d', nargs='?', default = './hypecasts', help='where to output finished data to')
   parser.add_argument('--max_pages', '-p', default=0, type=int, help='max pages to download, defaults to 1 for popular, -1 for loved')
   parser.add_argument("-f", "--feedonly", action="store_true", dest="feedonly", help='if set, don\'t chunk into robot podcasts')
   args = parser.parse_args()
