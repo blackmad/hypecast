@@ -89,9 +89,13 @@ class HypePodGenerator():
       filename = '%s - %s.mp3' % (s['artist'], s['title'])
       filepath = os.path.join(self.workdir, filename)
       if not os.path.exists(filepath):
-        req = urllib2.urlopen(s['stream_url_raw'])
-        with open(filepath, 'wb') as fp:
-          shutil.copyfileobj(req, fp)
+        try:
+          req = urllib2.urlopen(s['stream_url_raw'])
+          with open(filepath, 'wb') as fp:
+            shutil.copyfileobj(req, fp)
+        except:
+          print u'Failed to download %s' % filename
+          self.songs.remove(s)
       s['local_file'] = filepath
     return self.songs
 
@@ -257,6 +261,31 @@ class HypePodGenerator():
       else:
         print 'already had this entry for %s, not adding' % podcast_xml_file
 
+  def makePassThroughRss(self):
+    fg = FeedGenerator()
+    fg.load_extension('podcast')
+    fg.id('http://hypepod.blackmad.com/' + self.mode)
+    fg.title('Hype Machine PassThru Radio: ' + self.mode)
+    fg.author( {'name':'David Blackmad','email':'hypepod@davidblackman.com'} )
+    fg.logo('http://themelkerproject.com/wp-content/uploads/2013/10/the-hype-machine.jpg')
+    fg.language('en')
+    fg.link(href='http://hypepod.blackmad.com/' + self.mode)
+    fg.description('Hype Machine PassThru: ' + self.mode)
+
+    # description = '<br/>'.join(['%s. %s' % (index + 1, self.mk_song_id(s)) for index, s in enumerate(self.songs)])
+
+    for s in self.songs:
+      fe = fg.add_entry()
+      fe.title(self.mk_song_id(s))
+      fe.id(s['mediaid'])
+      fe.description(s['description'])
+      fg.podcast.itunes_image(s['thumb_url'])
+      # add length
+      fe.enclosure(url = 'http://hypepod.blackmad.com/%s/%s' % (self.output_dir, s['local_file']), type="audio/mpeg")
+
+    podcast_xml_file = os.path.join(self.output_dir, 'podcast.xml')
+    fg.rss_file(podcast_xml_file)
+
   def __init__(self, args):
     pass
 
@@ -294,43 +323,50 @@ class HypePodGenerator():
       self.intro_text = 'Welcome to hype machine robot radio %s' % (for_text)
         
     elif args.mode == 'loved':
-      sef.mode = 'loved/%s' % (args.user)
+      self.mode = 'loved/%s' % (args.user)
       url = 'https://api.hypem.com/api/get_profile?username=%s&key=%s' % (args.user, HYPE_KEY)
       print url
       response = urllib2.urlopen(url)
       response = json.loads(response.read())
+      print response
       name = response['username']
       if 'fullname' in response:
         name = response['fullname']
       self.intro_text = 'You are listening to %s\'s loved tracks on hype machine, robot radio' % (args.user)
       self.track_name = '%s\'s loved tracks' % name
 
-    self.output_dir = os.path.join(self.mode, self.voice)
+    if args.feedonly:
+      self.voice = 'feedonly'
+    self.output_dir = os.path.join('hypecasts', self.mode, self.voice)
     if not os.path.exists(self.output_dir):
       os.makedirs(self.output_dir)
 
     self.max_pages = 1
     if args.max_pages == 0:
       if args.mode == 'loved':
-        self.max_pages = -1
+        self.max_pages = 1000000
     else:
       self.max_pages = args.max_pages
 
+    if args.feedonly:
+      self.workdir = self.output_dir
+
     self.songs = self.getSongs()
     self.songs = self.downloadSongs()
+    self.songs = [s for s in self.songs if 'local_file' in s]
     if not args.feedonly:
       self.filename = self.buildPodcast()
       self.makeRss()
     else:
-      print 'dint do this yet'
+      self.makePassThroughRss()
 
 def main():
   parser = argparse.ArgumentParser(description='Make a hypecast.')
-  parser.add_argument('--mode', nargs='?', help='mode: popular, loved', default='popular')
-  parser.add_argument('--when', nargs='?', help='when to fetch popular', choices=['lastweek', 'noremix', 'today', '3day'], default='lastweek')
+  parser.add_argument('--mode', '-m', nargs='?', help='mode: popular, loved', default='popular')
+  parser.add_argument('--when', '-w', nargs='?', help='when to fetch popular', choices=['lastweek', 'noremix', 'today', '3day'], default='lastweek')
   parser.add_argument('--voice', '-v', help='what voice to use', default='Ava', choices=['Ava', 'Allison', 'Google'])
-  parser.add_argument('--user', nargs='?', help='user for loved mode')
-  parser.add_argument('--max_pages', default=0, type=int, help='max pages to download, defaults to 1 for popular, -1 for loved')
+  parser.add_argument('--user', '-u', nargs='?', help='user for loved mode')
+  parser.add_argument('--max_pages', '-p', default=0, type=int, help='max pages to download, defaults to 1 for popular, -1 for loved')
   parser.add_argument("-f", "--feedonly", action="store_true", dest="feedonly", help='if set, don\'t chunk into robot podcasts')
   args = parser.parse_args()
 
