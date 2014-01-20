@@ -54,8 +54,11 @@ class HypePodGenerator():
   def getSongs(self):
     ret_songs = []
     for page in range(1, self.max_pages+ 1):
+      modepath = self.mode
+      if self.mode in ['noremix', 'lastweek', '3day']:
+        modepath = 'popular/%s' % self.mode
       print 'fetching again, page %d' % page
-      url = 'http://api.hypem.com/playlist/%s/json/%s/data.json?key=%s' % (self.mode, page, HYPE_KEY)
+      url = 'http://api.hypem.com/playlist/%s/json/%s/data.json?key=%s' % (modepath, page, HYPE_KEY)
       print url
       print 'fetching %s' % url
       try:
@@ -344,7 +347,7 @@ class HypePodGenerator():
 
     self.max_pages = 1
     if args.max_pages == 0:
-      if args.mode == 'loved':
+      if args.mode == 'loved' and args.feedonly:
         self.max_pages = 1000000
     else:
       self.max_pages = args.max_pages
