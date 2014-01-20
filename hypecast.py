@@ -100,6 +100,7 @@ class HypePodGenerator():
           print u'Failed to download %s' % filename
           self.songs.remove(s)
       s['local_file'] = filepath
+      s['filename'] = filename
     return self.songs
 
   def hasOsXVoice(self, v):
@@ -247,6 +248,8 @@ class HypePodGenerator():
     fe.description(description)
     fe.id(self.filename)
     # add length
+    print self.relative_dir
+    print self.filename
     fe.enclosure(url = 'http://hypepod.blackmad.com/%s/%s' % (self.relative_dir, self.filename), type="audio/mpeg")
 
     podcast_xml_file = os.path.join(self.output_dir, 'podcast.xml')
@@ -284,7 +287,7 @@ class HypePodGenerator():
       fe.description(s['description'])
       fg.podcast.itunes_image(s['thumb_url'])
       # add length
-      fe.enclosure(url = 'http://hypepod.blackmad.com/%s/%s' % (self.relative_dir, s['local_file']), type="audio/mpeg")
+      fe.enclosure(url = 'http://hypepod.blackmad.com/%s/%s' % (self.relative_dir, s['filename']), type="audio/mpeg")
 
     podcast_xml_file = os.path.join(self.output_dir, 'podcast.xml')
     fg.rss_file(podcast_xml_file)
@@ -338,6 +341,7 @@ class HypePodGenerator():
       self.intro_text = 'You are listening to %s\'s loved tracks on hype machine, robot radio' % (args.user)
       self.track_name = '%s\'s loved tracks' % name
 
+    self.mode = args.mode
     if args.feedonly:
       self.voice = 'feedonly'
     self.relative_dir = os.path.join(self.mode, self.voice)
