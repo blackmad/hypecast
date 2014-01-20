@@ -232,7 +232,7 @@ class HypePodGenerator():
     fg.id('http://hypepod.blackmad.com/' + self.mode)
     fg.title('Hype Machine Robot Radio: ' + self.mode)
     fg.author( {'name':'David Blackmad','email':'hypepod@davidblackman.com'} )
-    fg.logo('http://themelkerproject.com/wp-content/uploads/2013/10/the-hype-machine.jpg')
+    fg.logo('http://dump.blackmad.com/the-hype-machine.jpg')
     fg.language('en')
     fg.link(href='http://hypepod.blackmad.com/' + self.mode)
     fg.description('Hype Machine Robot Radio: ' + self.mode)
@@ -244,7 +244,7 @@ class HypePodGenerator():
     fe.description(description)
     fe.id(self.filename)
     # add length
-    fe.enclosure(url = 'http://hypepod.blackmad.com/%s/%s' % (self.output_dir, self.filename), type="audio/mpeg")
+    fe.enclosure(url = 'http://hypepod.blackmad.com/%s/%s' % (self.relative_dir, self.filename), type="audio/mpeg")
 
     podcast_xml_file = os.path.join(self.output_dir, 'podcast.xml')
     if not os.path.exists(podcast_xml_file):
@@ -281,7 +281,7 @@ class HypePodGenerator():
       fe.description(s['description'])
       fg.podcast.itunes_image(s['thumb_url'])
       # add length
-      fe.enclosure(url = 'http://hypepod.blackmad.com/%s/%s' % (self.output_dir, s['local_file']), type="audio/mpeg")
+      fe.enclosure(url = 'http://hypepod.blackmad.com/%s/%s' % (self.relative_dir, s['local_file']), type="audio/mpeg")
 
     podcast_xml_file = os.path.join(self.output_dir, 'podcast.xml')
     fg.rss_file(podcast_xml_file)
@@ -337,7 +337,8 @@ class HypePodGenerator():
 
     if args.feedonly:
       self.voice = 'feedonly'
-    self.output_dir = os.path.join(args.basedir, self.mode, self.voice)
+    self.relative_dir = os.path.join(self.mode, self.voice)
+    self.output_dir = os.path.join(args.basedir, self.relative_dir)
     if not os.path.exists(self.output_dir):
       os.makedirs(self.output_dir)
 
