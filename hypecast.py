@@ -54,11 +54,8 @@ class HypePodGenerator():
   def getSongs(self):
     ret_songs = []
     for page in range(1, self.max_pages+ 1):
-      modepath = self.mode
-      if self.mode in ['noremix', 'lastweek', '3day']:
-        modepath = 'popular/%s' % self.mode
       print 'fetching again, page %d' % page
-      url = 'http://api.hypem.com/playlist/%s/json/%s/data.json?key=%s' % (modepath, page, HYPE_KEY)
+      url = 'http://api.hypem.com/playlist/%s/json/%s/data.json?key=%s' % (self.mode, page, HYPE_KEY)
       print url
       print 'fetching %s' % url
       try:
@@ -285,7 +282,7 @@ class HypePodGenerator():
       fe.title(self.mk_song_id(s))
       fe.id(s['mediaid'])
       fe.description(s['description'])
-      fg.podcast.itunes_image(s['thumb_url'])
+      fe.podcast.itunes_image(s['thumb_url'])
       # add length
       fe.enclosure(url = 'http://hypepod.blackmad.com/%s/%s' % (self.relative_dir, s['filename']), type="audio/mpeg")
 
@@ -341,7 +338,6 @@ class HypePodGenerator():
       self.intro_text = 'You are listening to %s\'s loved tracks on hype machine, robot radio' % (args.user)
       self.track_name = '%s\'s loved tracks' % name
 
-    self.mode = args.mode
     if args.feedonly:
       self.voice = 'feedonly'
     self.relative_dir = os.path.join(self.mode, self.voice)
