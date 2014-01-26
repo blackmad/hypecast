@@ -194,7 +194,8 @@ class HypePodGenerator():
       playlist_secs = len(playlist) / 1000
       print u'%s at %s:%02d' % (unicodeify(s), playlist_secs / 60, playlist_secs % 60)
 
-    id_positions = [2, 5, 8, 10, 13, 17, 19, 21]
+    # this is stupid
+    id_positions = [2, 5, 8, 10, 13, 17, 19, 21, 25, 28, 31, 34, 37, 40, 42, 45, 47]
 
     for index, s in enumerate(self.songs):
       segment = AudioSegment.from_mp3(s['local_file'])
@@ -341,6 +342,9 @@ class HypePodGenerator():
     if args.feedonly:
       self.voice = 'feedonly'
     self.relative_dir = os.path.join(self.mode, self.voice)
+    if not os.path.exists(args.basedir):
+      print 'basedir %s doesn\'t exist' % args.basedir
+      sys.exit(1)
     self.output_dir = os.path.join(args.basedir, self.relative_dir)
     if not os.path.exists(self.output_dir):
       os.makedirs(self.output_dir)
