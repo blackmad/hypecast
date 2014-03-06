@@ -3,6 +3,8 @@
 import xml.etree.ElementTree as ET
 import sys
 import random
+from urllib2 import URLError, HTTPError
+
 import time
 import feedgen
 from feedgen.feed import FeedGenerator
@@ -93,11 +95,14 @@ class HypePodGenerator():
       print url
       print 'fetching %s' % url
       try:
-        response = urllib2.urlopen(url)
-        return json.loads(response.read())
+        headers = { 'User-Agent' : 'Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11' }
+        req = urllib2.Request(url, None, headers)
+        response = urllib2.urlopen(req).read()
+        return json.loads(response)
       except:
+        print  sys.exc_info()[0]
         print 'No more songs on page %s' % page
-        return ret_songs
+        return []
    
   def get_tts_mp3(self, sent, fname=None):
       lang = 'en'
@@ -122,13 +127,22 @@ class HypePodGenerator():
       filepath = os.path.join(self.workdir, filename)
       if not os.path.exists(filepath):
         try:
-          req = urllib2.urlopen(s['stream_pub'])
-          print s['stream_pub']
+          headers = { 'User-Agent' : 'Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11' }
+          url = s['stream_pub']
+          request = urllib2.Request(url, None, headers)
+          req = urllib2.urlopen(request)
           with open(filepath, 'wb') as fp:
             shutil.copyfileobj(req, fp)
+        except URLError, e:
+          print e.code
+          print e.fp.read()
+          print u'Failed to download %s' % filename
+          print s['stream_pub']
+          self.songs.remove(s)
         except:
           print u'Failed to download %s' % filename
           print  sys.exc_info()[0]
+          print s['stream_pub']
           self.songs.remove(s)
       s['local_file'] = filepath
       s['filename'] = filename
@@ -230,7 +244,7 @@ class HypePodGenerator():
       playlist = playlist.append(segment, crossfade=(10 * 1000))
       
       last_song_block = self.songs[last_id_index:index + 1]
-      if index in id_positions or index == len(self.songs):
+      if index in id_positions or index == len(self.songs) - 1:
         if random.random() < 0.7:
           ids = self.mk_song_ids_string(last_song_block)
           id_tts_string = listify(u'You just heard ') + ids 
@@ -291,22 +305,19 @@ class HypePodGenerator():
     out.write(ET.tostring(newItem))
     out.close()
 
-    podcast_xml_file = os.path.join(self.output_dir, 'podcast.xml')
-    if not os.path.exists(podcast_xml_file):
-      fg.rss_file(podcast_xml_file)
-    else:
-      rss_str = fg.rss_str()
-      newItem = ET.fromstring(rss_str)[0].find('item')
-      oldListing = ET.parse(podcast_xml_file)
-      oldChannel = ET.fromstring(rss_str).find('channel')
-      oldItem = oldChannel.find('item')
-      print oldItem.find('guid').text
-      print newItem.find('guid').text
-      if oldItem.find('guid').text != newItem.find('guid').text:
-        oldChannel.insert(newItem, 0)
-        oldListing.write(podcast_xml_file)
-      else:
-        print 'already had this entry for %s, not adding' % podcast_xml_file
+    opening_xml = """<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Hype Machine Robot Radio: popular/lastweek</title><link>http://hypepod.blackmad.com/popular/lastweek</link><description>Hype Machine Robot Radio: popular/lastweek</description><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>http://dump.blackmad.com/the-hype-machine.jpg</url><title>Hype Machine Robot Radio: popular/lastweek</title><link>http://hypepod.blackmad.com/popular/lastweek</link></image><language>en</language><lastBuildDate>Thu, 06 Mar 2014 05:02:12 +0000</lastBuildDate>"""
+    closing_xml =  """</channel></rss>"""
+
+    xml = opening_xml
+    xmlfiles = sorted([ f for f in os.listdir(self.output_dir) if os.path.isfile(os.path.join(self.output_dir,f)) and f != 'podcast.xml' ])
+    for x in xmlfiles:
+      xml += open(x).read()
+    xml += closing_xml
+
+    podcast_xml_filename = os.path.join(self.output_dir, 'podcast.xml')
+    podcast_xml_file = open(podcast_xml_filename, 'w')
+    podcast_xml_file.write(xml)
+    podcast_xml_file.close()
 
   def makePassThroughRss(self):
     fg = FeedGenerator()
