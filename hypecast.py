@@ -247,10 +247,10 @@ class HypePodGenerator():
       if index in id_positions or index == len(self.songs) - 1:
         if random.random() < 0.7:
           ids = self.mk_song_ids_string(last_song_block)
-          id_tts_string = listify(u'You just heard ') + ids  '.'
+          id_tts_string = listify(u'You just heard ') + ids + listify('.')
         else:
           ids = self.mk_backwards_song_ids_string(last_song_block)
-          id_tts_string = listify(u'That was ') + ids  + '.'
+          id_tts_string = listify(u'That was ') + ids  + listify('.')
 
         last_id_index = index + 1
         if index < len(self.songs) - 1:
@@ -309,7 +309,7 @@ class HypePodGenerator():
     closing_xml =  """</channel></rss>"""
 
     xml = opening_xml
-    xmlfiles = sorted([ f for f in os.listdir(self.output_dir) if os.path.isfile(os.path.join(self.output_dir,f)) and f != 'podcast.xml' ])
+    xmlfiles = sorted([ os.path.join(self.output_dir,f) for f in os.listdir(self.output_dir) if f != 'podcast.xml' and f.endswith('.xml') ])
     for x in xmlfiles:
       xml += open(x).read()
     xml += closing_xml
@@ -430,7 +430,7 @@ def main():
     voices += getMacVoices()
 
   parser = argparse.ArgumentParser(description='Make a hypecast.')
-  parser.add_argument('--mode', '-m', nargs='?', help='mode: popular, favorites', default='popular')
+  parser.add_argument('--mode', '-m', nargs='?', help='mode: popular, favorites', default='popular', choices= ['popular', 'favorites'])
   parser.add_argument('--when', '-w', nargs='?', help='when to fetch popular', choices=['lastweek', 'noremix', 'now', '3day'], default='lastweek')
   parser.add_argument('--voice', '-v', help='what voice to use', default='Ava', choices=voices)
   parser.add_argument('--user', '-u', nargs='?', help='user for favorites mode')
