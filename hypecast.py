@@ -247,17 +247,17 @@ class HypePodGenerator():
       if index in id_positions or index == len(self.songs) - 1:
         if random.random() < 0.7:
           ids = self.mk_song_ids_string(last_song_block)
-          id_tts_string = listify(u'You just heard ') + ids 
+          id_tts_string = listify(u'You just heard ') + ids  '.'
         else:
           ids = self.mk_backwards_song_ids_string(last_song_block)
-          id_tts_string = listify(u'That was ') + ids 
+          id_tts_string = listify(u'That was ') + ids  + '.'
 
         last_id_index = index + 1
         if index < len(self.songs) - 1:
           id_tts_string += listify(u'Up next ') + self.mk_song_ids_string(self.songs[index + 1:index + 2])
           last_id_index = index + 2
         outro_time = 10
-        if index == len(self.songs):
+        if index == len(self.songs) - 1:
           id_tts_string += listify(u'Thanks for listening.')
           outro_time = 30
         id_file = self.mk_tts_tmp(id_tts_string, intro_time = 10, outro_time = outro_time)
