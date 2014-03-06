@@ -304,8 +304,13 @@ class HypePodGenerator():
     out = open(self.get_filename('xml'), 'w')
     out.write(ET.tostring(newItem))
     out.close()
+    self.updateRss()
 
-    opening_xml = """<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Hype Machine Robot Radio: popular/lastweek</title><link>http://hypepod.blackmad.com/popular/lastweek</link><description>Hype Machine Robot Radio: popular/lastweek</description><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>http://dump.blackmad.com/the-hype-machine.jpg</url><title>Hype Machine Robot Radio: popular/lastweek</title><link>http://hypepod.blackmad.com/popular/lastweek</link></image><language>en</language><lastBuildDate>Thu, 06 Mar 2014 05:02:12 +0000</lastBuildDate>"""
+  def updateRss(self):
+    opening_xml = """<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Hype Machine Robot Radio: %(mode)s</title><link>http://hypepod.blackmad.com/%(mode)s</link><description>Hype Machine Robot Radio: %(mode)s</description><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>http://dump.blackmad.com/the-hype-machine.jpg</url><title>Hype Machine Robot Radio: %(mode)s</title><link>http://hypepod.blackmad.com/%(mode)s</link></image><language>en</language><lastBuildDate>%(date)s</lastBuildDate>""" % {
+      'mode': self.mode,
+      'date': datetime.datetime.now()
+    }
     closing_xml =  """</channel></rss>"""
 
     xml = opening_xml
@@ -401,6 +406,10 @@ class HypePodGenerator():
     if not os.path.exists(self.output_dir):
       os.makedirs(self.output_dir)
 
+    if args.update:
+      self.updateRss()
+      return
+
     self.max_pages = 1
     if args.max_pages == 0:
       if args.mode == 'favorites' and args.feedonly:
@@ -437,6 +446,7 @@ def main():
   parser.add_argument('--basedir', '-d', nargs='?', default = './hypecasts', help='where to output finished data to')
   parser.add_argument('--max_pages', '-p', default=0, type=int, help='max pages to download, defaults to 1 for popular, -1 for favorites ')
   parser.add_argument("-f", "--feedonly", action="store_true", dest="feedonly", help='if set, don\'t chunk into robot podcasts')
+  parser.add_argument("--update", action="store_true", dest="update", help='update rss, no mp3 building')
   args = parser.parse_args()
 
   generator = HypePodGenerator(args)
