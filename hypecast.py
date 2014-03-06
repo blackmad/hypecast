@@ -55,17 +55,29 @@ class HypePodGenerator():
     ret_songs = []
     for page in range(1, self.max_pages+ 1):
       print 'fetching again, page %d' % page
-      url = 'http://api.hypem.com/playlist/%s/json/%s/data.json?key=%s' % (self.mode, page, HYPE_KEY)
+
+      params = {
+        'page': page,
+        'key': HYPE_KEY
+      }
+      mode = self.mode
+      base_url = 'https://api.hypem.com/v2/'
+      url = base_url + mode
+
+      if mode.startswith('popular/'):
+        parts = mode.split('/')
+        url = base_url + 'popular'
+        params['mode'] = parts[1]
+
+      url = url + '?' + urllib.urlencode(params)
       print url
       print 'fetching %s' % url
       try:
         response = urllib2.urlopen(url)
-        response = json.loads(response.read())
-        ret_songs += [response[key] for key in sorted(response.keys()) if key.isdigit()]
+        return json.loads(response.read())
       except:
         print 'No more songs on page %s' % page
         return ret_songs
-    return ret_songs
    
   def get_tts_mp3(self, sent, fname=None):
       lang = 'en'
@@ -86,15 +98,17 @@ class HypePodGenerator():
   def downloadSongs(self):
     for index, s in enumerate(self.songs):
       print 'Downloading %s of %s songs' % (index + 1, len(self.songs))
-      filename = '%s - %s.mp3' % (s['artist'], s['title'])
+      filename = ('%s - %s.mp3' % (s['artist'], s['title'])).replace('/', '_')
       filepath = os.path.join(self.workdir, filename)
       if not os.path.exists(filepath):
         try:
-          req = urllib2.urlopen(s['stream_url_raw'])
+          req = urllib2.urlopen(s['stream_pub'])
+          print s['stream_pub']
           with open(filepath, 'wb') as fp:
             shutil.copyfileobj(req, fp)
         except:
           print u'Failed to download %s' % filename
+          print  sys.exc_info()[0]
           self.songs.remove(s)
       s['local_file'] = filepath
       s['filename'] = filename
@@ -221,12 +235,15 @@ class HypePodGenerator():
     playlist = playlist.fade_out(30)
     
     print 'Writing out, this will take a bit'
-    out_filename = os.path.join(self.output_dir, "hypepod-%s-%s-%s.mp3" % (self.mode.replace('/', '_'), self.voice, datetime.datetime.now().strftime("%Y-%m-%d")))
+    out_filename = self.get_filename('mp3')
     out_f = open(out_filename, 'wb')
 
     playlist.export(out_f, format='mp3', tags={'artist': 'Hype Machine Robot Radio', 'track': self.track_name})
     print 'Done, written to %s' % out_filename
     return out_filename
+
+  def get_filename(self, ext):
+    return os.path.join(self.output_dir, "hypepod-%s-%s-%s.%s" % (self.mode.replace('/', '_'), self.voice, datetime.datetime.now().strftime("%Y-%m-%d"), ext))
 
   def makeRss(self):
     fg = FeedGenerator()
@@ -250,6 +267,12 @@ class HypePodGenerator():
     print self.filename
     fe.enclosure(url = 'http://hypepod.blackmad.com/%s/%s' % (self.relative_dir, self.filename), type="audio/mpeg")
 
+    rss_str = fg.rss_str()
+    newItem = ET.fromstring(rss_str)[0].find('item')
+    out = open(self.get_filename('xml'), 'w')
+    out.write(ET.tostring(newItem))
+    out.close()
+
     podcast_xml_file = os.path.join(self.output_dir, 'podcast.xml')
     if not os.path.exists(podcast_xml_file):
       fg.rss_file(podcast_xml_file)
@@ -259,6 +282,8 @@ class HypePodGenerator():
       oldListing = ET.parse(podcast_xml_file)
       oldChannel = ET.fromstring(rss_str).find('channel')
       oldItem = oldChannel.find('item')
+      print oldItem.find('guid').text
+      print newItem.find('guid').text
       if oldItem.find('guid').text != newItem.find('guid').text:
         oldChannel.insert(newItem, 0)
         oldListing.write(podcast_xml_file)
@@ -316,7 +341,7 @@ class HypePodGenerator():
         mydate.strftime("%Y"))
       if args.when == 'lastweek':
         for_text = ' for the week of %s' % date_text
-      elif args.when == 'today':
+      elif args.when == 'now':
         for_text = ' for ' + date_text
       elif args.when == '3day':
         for_text = ' for the three days leading up to %s' % date_text
@@ -326,8 +351,8 @@ class HypePodGenerator():
       self.track_name = for_text.replace(' for ', '').capitalize()
       self.intro_text = 'Welcome to hype machine robot radio %s' % (for_text)
         
-    elif args.mode == 'loved':
-      self.mode = 'loved/%s' % (args.user)
+    elif args.mode == 'favorites':
+      self.mode = 'users/%s/favorites' % (args.user)
       url = 'https://api.hypem.com/api/get_profile?username=%s&key=%s' % (args.user, HYPE_KEY)
       print url
       response = urllib2.urlopen(url)
@@ -351,7 +376,7 @@ class HypePodGenerator():
 
     self.max_pages = 1
     if args.max_pages == 0:
-      if args.mode == 'loved' and args.feedonly:
+      if args.mode == 'favorites' and args.feedonly:
         self.max_pages = 1000000
     else:
       self.max_pages = args.max_pages
@@ -370,12 +395,12 @@ class HypePodGenerator():
 
 def main():
   parser = argparse.ArgumentParser(description='Make a hypecast.')
-  parser.add_argument('--mode', '-m', nargs='?', help='mode: popular, loved', default='popular')
-  parser.add_argument('--when', '-w', nargs='?', help='when to fetch popular', choices=['lastweek', 'noremix', 'today', '3day'], default='lastweek')
+  parser.add_argument('--mode', '-m', nargs='?', help='mode: popular, favorites', default='popular')
+  parser.add_argument('--when', '-w', nargs='?', help='when to fetch popular', choices=['lastweek', 'noremix', 'now', '3day'], default='lastweek')
   parser.add_argument('--voice', '-v', help='what voice to use', default='Ava', choices=['Ava', 'Allison', 'Google'])
-  parser.add_argument('--user', '-u', nargs='?', help='user for loved mode')
+  parser.add_argument('--user', '-u', nargs='?', help='user for favorites mode')
   parser.add_argument('--basedir', '-d', nargs='?', default = './hypecasts', help='where to output finished data to')
-  parser.add_argument('--max_pages', '-p', default=0, type=int, help='max pages to download, defaults to 1 for popular, -1 for loved')
+  parser.add_argument('--max_pages', '-p', default=0, type=int, help='max pages to download, defaults to 1 for popular, -1 for favorites ')
   parser.add_argument("-f", "--feedonly", action="store_true", dest="feedonly", help='if set, don\'t chunk into robot podcasts')
   args = parser.parse_args()
 
