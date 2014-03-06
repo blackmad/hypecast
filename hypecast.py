@@ -2,6 +2,7 @@
 
 import xml.etree.ElementTree as ET
 import sys
+import random
 import time
 import feedgen
 from feedgen.feed import FeedGenerator
@@ -38,6 +39,25 @@ from api_keys import *
 # make this a class
 
 ordinal = lambda n: "%d%s" % (n,"tsnrhtdd"[(n/10%10!=1)*(n%10<4)*n%10::4])
+
+def getMacVoices():
+  return [l.split(" ")[0] for l in subprocess.check_output(["say", "-v", "?"]).split('\n')]
+
+def hasOsXVoice(v):
+  voices = getMacVoices()
+  for avail in voices:
+    if avail == v:
+      return True
+  print "\n\n\n=============\nMust download OS X Voice: %s\n============\n\n\n" % v
+  return False
+
+def hasHighQualityOsXVoices():
+  high_quality_voices = ["Ava", "Allison", "Tom"]
+  for v in high_quality_voices:
+    if hasOsXVoice(v):
+      return v
+  print "\n\n\n=============\nYou should really download the high quality os x voices\n============\n\n\n"
+  return None
 
 def listify(v):
   if not isinstance(v, list):
@@ -112,38 +132,18 @@ class HypePodGenerator():
           self.songs.remove(s)
       s['local_file'] = filepath
       s['filename'] = filename
-    return self.songs
-
-  def hasOsXVoice(self, v):
-    voices = [l.split(" ")[0] for l in subprocess.check_output(["say", "-v", "?"]).split('\n')]
-    for avail in voices:
-      if avail == v:
-        return True
-    print "\n\n\n=============\nMust download OS X Voice: %s\n============\n\n\n" % v
-    return False
-
-  def hasHighQualityOsXVoices(self):
-    high_quality_voices = ["Ava", "Allison", "Tom"]
-    for v in high_quality_voices:
-      if self.hasOsXVoice(v):
-        return v
-    print "\n\n\n=============\nYou should really download the high quality os x voices\n============\n\n\n"
-    return None
-
+    return self.songs 
 
   def mk_tts_tmp(self, texts, intro_time = 2, outro_time = 4):
     texts = listify(texts)
 
     segment = None
-    if os.path.exists('/usr/bin/say') and self.voice in ["Ava", "Allison"]:
-      if not self.hasOsXVoice(self.voice):
-        sys.exit(1)
+    if os.path.exists('/usr/bin/say') and self.voice in getMacVoices():
       # print 'Using OS X Say'
       text = ' '.join(texts)
       print u' ---> %s ' % text
       tf = tempfile.mkstemp(suffix = '.aiff', dir = self.tts_workdir)
       voice_opt = ''
-      self.hasOsXVoice(self.voice)
       voice_opt = unicodeify('-v %s' % self.voice)
       cmd = u'say %s -o %s "%s"' % (voice_opt, unicodeify(tf[1]), text)
       print cmd
@@ -180,7 +180,7 @@ class HypePodGenerator():
     total_time_needed = intro_time + outro_time + len(segment)
     start_offset = random.randint(0, len(soundbed) - total_time_needed - 50)
     intro = soundbed[start_offset:start_offset + intro_time]
-    talking = (segment + 1) * (soundbed[start_offset + intro_time:start_offset + intro_time + len(segment)]  - 4)
+    talking = (segment + 3) * (soundbed[start_offset + intro_time:start_offset + intro_time + len(segment)]  - 4)
     outro = soundbed[start_offset + intro_time + len(segment):start_offset + intro_time + len(segment) + outro_time]
     talking_segment = intro + talking + outro
     talking_segment.fade_out(int(outro_time * 0.8))
@@ -198,7 +198,20 @@ class HypePodGenerator():
     else:
       return [self.mk_song_id(s) + u', ' for s in songs[0:-1]] + listify(' and ' + self.mk_song_id(songs[-1]) + '.')
 
+  def mk_backwards_song_id(self, song):
+    return u'%s with %s' % (song['artist'], song['title'])
+
+  def mk_backwards_song_ids_string(self, songs):
+    songs = listify(songs)
+    if len(songs) == 1:
+      return listify(self.mk_backwards_song_id(songs[0]))
+    else:
+      return [self.mk_backwards_song_id(s) + u', ' for s in songs[0:-1]] + listify(' and ' + self.mk_song_id(songs[-1]) + '.')
+
+
   def buildPodcast(self):
+    if self.voice in getMacVoices():
+      self.intro_text += '. I\'m your host, ' + self.voice + ', we\'ve got a great show coming up.'
     intro = self.mk_tts_tmp(self.intro_text, outro_time = 10)
 
     playlist = intro
@@ -218,8 +231,13 @@ class HypePodGenerator():
       
       last_song_block = self.songs[last_id_index:index + 1]
       if index in id_positions or index == len(self.songs):
-        ids = self.mk_song_ids_string(last_song_block)
-        id_tts_string = listify(u'You just heard ') + ids 
+        if random.random() < 0.7:
+          ids = self.mk_song_ids_string(last_song_block)
+          id_tts_string = listify(u'You just heard ') + ids 
+        else:
+          ids = self.mk_backwards_song_ids_string(last_song_block)
+          id_tts_string = listify(u'That was ') + ids 
+
         last_id_index = index + 1
         if index < len(self.songs) - 1:
           id_tts_string += listify(u'Up next ') + self.mk_song_ids_string(self.songs[index + 1:index + 2])
@@ -317,10 +335,8 @@ class HypePodGenerator():
 
   def __init__(self, args):
     pass
-
+  
   def make(self, args):
-    if os.path.exists('/usr/bin/say'):
-      self.hasHighQualityOsXVoices()
     self.voice = args.voice
 
     self.workdir = '/tmp/hypem'
@@ -394,10 +410,18 @@ class HypePodGenerator():
       self.makePassThroughRss()
 
 def main():
+  def onMac():
+    return os.path.exists('/usr/bin/say')
+
+  voices = ['Google']
+  if onMac():
+    hasHighQualityOsXVoices()
+    voices += getMacVoices()
+
   parser = argparse.ArgumentParser(description='Make a hypecast.')
   parser.add_argument('--mode', '-m', nargs='?', help='mode: popular, favorites', default='popular')
   parser.add_argument('--when', '-w', nargs='?', help='when to fetch popular', choices=['lastweek', 'noremix', 'now', '3day'], default='lastweek')
-  parser.add_argument('--voice', '-v', help='what voice to use', default='Ava', choices=['Ava', 'Allison', 'Google'])
+  parser.add_argument('--voice', '-v', help='what voice to use', default='Ava', choices=voices)
   parser.add_argument('--user', '-u', nargs='?', help='user for favorites mode')
   parser.add_argument('--basedir', '-d', nargs='?', default = './hypecasts', help='where to output finished data to')
   parser.add_argument('--max_pages', '-p', default=0, type=int, help='max pages to download, defaults to 1 for popular, -1 for favorites ')
