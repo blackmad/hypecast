@@ -162,8 +162,10 @@ class HypePodGenerator():
       cmd = u'say %s -o %s "%s"' % (voice_opt, unicodeify(tf[1]), text)
       print cmd
       subprocess.check_output(['say', '-v', self.voice, '-o', unicodeify(tf[1]), text])
+      tempwav = tempfile.mktemp(suffix = '.wav', dir = self.tts_workdir)
+      subprocess.check_output(['ffmpeg', '-i', tf[1], '-f', 'wav', tempwav])
       # print tf[1]
-      segment = AudioSegment.from_file(tf[1])
+      segment = AudioSegment.from_file(tempwav)
     else:
       print texts
       for text in texts:
@@ -315,7 +317,9 @@ class HypePodGenerator():
 
     xml = opening_xml
     xmlfiles = sorted([ os.path.join(self.output_dir,f) for f in os.listdir(self.output_dir) if f != 'podcast.xml' and f.endswith('.xml') ])
+    xmlfiles.reverse()
     for x in xmlfiles:
+      print 'processing xml: ' + x
       xml += open(x).read()
     xml += closing_xml
 
