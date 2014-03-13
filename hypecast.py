@@ -282,12 +282,12 @@ class HypePodGenerator():
   def makeRss(self):
     fg = FeedGenerator()
     fg.load_extension('podcast')
-    fg.id('http://hypepod.blackmad.com/' + self.mode)
+    fg.id('http://hypecast.blackmad.com/' + self.mode)
     fg.title('Hype Machine Robot Radio: ' + self.mode)
     fg.author( {'name':'David Blackmad','email':'hypepod@davidblackman.com'} )
     fg.logo('http://dump.blackmad.com/the-hype-machine.jpg')
     fg.language('en')
-    fg.link(href='http://hypepod.blackmad.com/' + self.mode)
+    fg.link(href='http://hypecast.blackmad.com/' + self.mode)
     fg.description('Hype Machine Robot Radio: ' + self.mode)
 
     description = '<br/>'.join(['%s. %s' % (index + 1, self.mk_song_id(s)) for index, s in enumerate(self.songs)])
@@ -299,7 +299,7 @@ class HypePodGenerator():
     # add length
     print self.relative_dir
     print self.filename
-    fe.enclosure(url = 'http://hypepod.blackmad.com/%s/%s' % (self.relative_dir, self.filename), type="audio/mpeg")
+    fe.enclosure(url = 'http://hypecast.blackmad.com/%s/%s' % (self.relative_dir, self.filename), type="audio/mpeg")
 
     rss_str = fg.rss_str()
     newItem = ET.fromstring(rss_str)[0].find('item')
@@ -309,7 +309,7 @@ class HypePodGenerator():
     self.updateRss()
 
   def updateRss(self):
-    opening_xml = """<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Hype Machine Robot Radio: %(mode)s</title><link>http://hypepod.blackmad.com/%(mode)s</link><description>Hype Machine Robot Radio: %(mode)s</description><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>http://dump.blackmad.com/the-hype-machine.jpg</url><title>Hype Machine Robot Radio: %(mode)s</title><link>http://hypepod.blackmad.com/%(mode)s</link></image><language>en</language><lastBuildDate>%(date)s</lastBuildDate>""" % {
+    opening_xml = """<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Hype Machine Robot Radio: %(mode)s</title><link>http://hypecast.blackmad.com/%(mode)s</link><description>Hype Machine Robot Radio: %(mode)s</description><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>http://dump.blackmad.com/the-hype-machine.jpg</url><title>Hype Machine Robot Radio: %(mode)s</title><link>http://hypecast.blackmad.com/%(mode)s</link></image><language>en</language><lastBuildDate>%(date)s</lastBuildDate>""" % {
       'mode': self.mode,
       'date': datetime.datetime.now()
     }
@@ -331,12 +331,12 @@ class HypePodGenerator():
   def makePassThroughRss(self):
     fg = FeedGenerator()
     fg.load_extension('podcast')
-    fg.id('http://hypepod.blackmad.com/' + self.mode)
+    fg.id('http://hypecast.blackmad.com/' + self.mode)
     fg.title('Hype Machine PassThru Radio: ' + self.mode)
     fg.author( {'name':'David Blackmad','email':'hypepod@davidblackman.com'} )
     fg.logo('http://themelkerproject.com/wp-content/uploads/2013/10/the-hype-machine.jpg')
     fg.language('en')
-    fg.link(href='http://hypepod.blackmad.com/' + self.mode)
+    fg.link(href='http://hypecast.blackmad.com/' + self.mode)
     fg.description('Hype Machine PassThru: ' + self.mode)
 
     # description = '<br/>'.join(['%s. %s' % (index + 1, self.mk_song_id(s)) for index, s in enumerate(self.songs)])
@@ -348,7 +348,7 @@ class HypePodGenerator():
       fe.description(s['description'])
       fe.podcast.itunes_image(s['thumb_url'])
       # add length
-      fe.enclosure(url = 'http://hypepod.blackmad.com/%s/%s' % (self.relative_dir, s['filename']), type="audio/mpeg")
+      fe.enclosure(url = 'http://hypecast.blackmad.com/%s/%s' % ('hypecasts', s['filename']), type="audio/mpeg")
 
     podcast_xml_file = os.path.join(self.output_dir, 'podcast.xml')
     fg.rss_file(podcast_xml_file)
@@ -445,7 +445,7 @@ def main():
   parser = argparse.ArgumentParser(description='Make a hypecast.')
   parser.add_argument('--mode', '-m', nargs='?', help='mode: popular, favorites', default='popular', choices= ['popular', 'favorites'])
   parser.add_argument('--when', '-w', nargs='?', help='when to fetch popular', choices=['lastweek', 'noremix', 'now', '3day'], default='lastweek')
-  parser.add_argument('--voice', '-v', help='what voice to use', default='Ava', choices=voices)
+  parser.add_argument('--voice', '-v', help='what voice to use', default='Ava', choices=voices + ['Ava',])
   parser.add_argument('--user', '-u', nargs='?', help='user for favorites mode')
   parser.add_argument('--basedir', '-d', nargs='?', default = './hypecasts', help='where to output finished data to')
   parser.add_argument('--max_pages', '-p', default=0, type=int, help='max pages to download, defaults to 1 for popular, -1 for favorites ')
