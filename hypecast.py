@@ -290,7 +290,7 @@ class HypePodGenerator():
     fg.link(href='http://hypecast.blackmad.com/' + self.mode)
     fg.description('Hype Machine Robot Radio: ' + self.mode)
 
-    description = '<br/>'.join(['%s. %s' % (index + 1, self.mk_song_id(s)) for index, s in enumerate(self.songs)])
+    description = ' <br/>'.join(['%s. %s' % (index + 1, self.mk_song_id(s)) for index, s in enumerate(self.songs)])
     
     fe = fg.add_entry()
     fe.title(self.track_name)
