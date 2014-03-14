@@ -299,7 +299,7 @@ class HypePodGenerator():
     # add length
     print self.relative_dir
     print self.filename
-    fe.enclosure(url = 'http://hypecast.blackmad.com/%s/%s' % (self.relative_dir, self.filename), type="audio/mpeg")
+    fe.enclosure(url = 'http://hypecast.blackmad.com/%s' % (self.filename), type="audio/mpeg")
 
     rss_str = fg.rss_str()
     newItem = ET.fromstring(rss_str)[0].find('item')
