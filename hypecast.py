@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 import sys
 import random
 from urllib2 import URLError, HTTPError
-
+import random
 import time
 import feedgen
 from feedgen.feed import FeedGenerator
@@ -27,6 +27,8 @@ from pydub import AudioSegment
 import optparse
 from pydub.utils import db_to_float
 from api_keys import *
+from bs4 import BeautifulSoup
+
 
 # TODO: 
 # muck with the crossfades, still probably wrong
@@ -71,9 +73,40 @@ def unicodeify(v):
     return v
   return v.decode('u')
 
-class HypePodGenerator():
+def fetchPage(url, params):
+  data = urllib.urlencode(dict([k, v.encode('utf-8')] for k, v in params.items()))
+  request  = urllib2.Request(url, data)
+  request.add_header("User-Agent", "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11" )
+  return urllib2.urlopen(request).read()
 
+class HypePodGenerator():
   def getSongs(self):
+    if 'week:' in self.mode:
+      return self.getSongsFromScraping()
+    else:
+      return self.getSongsFromApi()
+  
+  def getSongsFromScraping(self):
+    ret_songs = []
+    parts = self.mode.split(':')
+    if not parts[0].endswith('week'):
+      print 'bad mode for scraping: ' + self.mode
+      sys.exit(1)
+    week = parts[1]
+    for page in range(1, self.max_pages+ 1):
+      print 'fetching again, page %d' % page
+      html = fetchPage('http://hypem.com/popular/week:%s/%s' % (week, page), {})
+      soup = BeautifulSoup(html)
+      # tracks = soup.find_all(attrs = {'class': 'section-track'})
+      jsonStr = soup.find(id = 'displayList-data').text.replace('<script>', '').replace('</script>', '').strip()
+      tracks = json.loads(jsonStr)['tracks']
+      for track in tracks:
+        track['title'] = track['song']
+        track['stream_pub'] =  'http://hypem.com/serve/public/%s' % track['id']
+        ret_songs.append(track)
+    return ret_songs
+
+  def getSongsFromApi(self):
     ret_songs = []
     for page in range(1, self.max_pages+ 1):
       print 'fetching again, page %d' % page
@@ -92,12 +125,8 @@ class HypePodGenerator():
         params['mode'] = parts[1]
 
       url = url + '?' + urllib.urlencode(params)
-      print url
-      print 'fetching %s' % url
       try:
-        headers = { 'User-Agent' : 'Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11' }
-        req = urllib2.Request(url, None, headers)
-        response = urllib2.urlopen(req).read()
+        response = fetchPage(url, {})
         return json.loads(response)
       except:
         print  sys.exc_info()[0]
@@ -109,10 +138,7 @@ class HypePodGenerator():
       print "Retrieving .mp3 for sentence: %s" % sent
       baseurl  = "http://translate.google.com/translate_tts"
       params   = { 'q': sent, 'tl': lang }
-      data = urllib.urlencode(dict([k, v.encode('utf-8')] for k, v in params.items()))
-      request  = urllib2.Request(baseurl, data)
-      request.add_header("User-Agent", "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11" )
-      response = urllib2.urlopen(request)
+      response = fetchPage(baseurl, params)
       if( fname==None ):
           fname = "_".join(sent.split())
       ofp = open(fname,"wb")
@@ -233,6 +259,24 @@ class HypePodGenerator():
     playlist = intro
     last_id_index = 0
 
+    def getNextIntroText(): 
+      options = [
+        u'Up next',
+        u'Next up',
+        u'Coming up',
+        u'We\'ve got',
+        u'Stay tuned for'
+      ]
+      return random.choice(options)
+    
+    def getPreviousIdentText(): 
+      options = [
+        u'That was',
+        u'You just heard',
+        u'Coming off of that set, we had'
+      ]
+      return random.choice(options)
+
     def print_counter(s):
       playlist_secs = len(playlist) / 1000
       print u'%s at %s:%02d' % (unicodeify(s), playlist_secs / 60, playlist_secs % 60)
@@ -240,24 +284,31 @@ class HypePodGenerator():
     # this is stupid
     id_positions = [2, 5, 8, 10, 13, 17, 19, 21, 25, 28, 31, 34, 37, 40, 42, 45, 47]
 
+    print len(self.songs)
     for index, s in enumerate(self.songs):
       segment = AudioSegment.from_mp3(s['local_file'])
       print_counter('switch to %s' % self.mk_song_ids_string(s))
       playlist = playlist.append(segment, crossfade=(10 * 1000))
-      
+     
+      print 'LAST ID INDEX: %s' % last_id_index
+      print 'INDEX: %s' % index
+      print len(self.songs)
       last_song_block = self.songs[last_id_index:index + 1]
+      print last_song_block
       if index in id_positions or index == len(self.songs) - 1:
-        if random.random() < 0.7:
-          ids = self.mk_song_ids_string(last_song_block)
-          id_tts_string = listify(u'You just heard ') + ids + listify('.')
-        else:
-          ids = self.mk_backwards_song_ids_string(last_song_block)
-          id_tts_string = listify(u'That was ') + ids  + listify('.')
+        id_tts_string = []
+        if last_song_block:
+          if random.random() < 0.7:
+            ids = self.mk_song_ids_string(last_song_block)
+          else:
+            ids = self.mk_backwards_song_ids_string(last_song_block)
+          id_tts_string = listify(getPreviousIdentText()) + ids + listify('.')
 
         last_id_index = index + 1
         if index < len(self.songs) - 1:
-          id_tts_string += listify(u'Up next ') + self.mk_song_ids_string(self.songs[index + 1:index + 2])
+          id_tts_string += listify(unicode(getNextIntroText())) + self.mk_song_ids_string(self.songs[index + 1:index + 2])
           last_id_index = index + 2
+
         outro_time = 10
         if index == len(self.songs) - 1:
           id_tts_string += listify(u'Thanks for listening.')
@@ -368,13 +419,18 @@ class HypePodGenerator():
 
     self.intro_text = ''
     self.track_name = ''
+
+    def makeDate(mydate):
+      return '%s %s %s' % (mydate.strftime("%B"), 
+        ordinal(int(mydate.strftime("%d"))),
+        mydate.strftime("%Y"))
+
+
     if args.mode == 'popular':
       self.mode = 'popular/%s' % (args.when)
 
       mydate = datetime.datetime.now()
-      date_text = '%s %s %s' % (mydate.strftime("%B"), 
-        ordinal(int(mydate.strftime("%d"))),
-        mydate.strftime("%Y"))
+      date_text = makeDate(mydate)
       if args.when == 'lastweek':
         for_text = ' for the week of %s' % date_text
       elif args.when == 'now':
@@ -383,10 +439,17 @@ class HypePodGenerator():
         for_text = ' for the three days leading up to %s' % date_text
       elif args.when == 'noremix':
         for_text = ' without remixes for the week %s' % date_text
+      elif 'week:' in args.when:
+        week = args.when.split(':')[1]
+        weektime = datetime.datetime.strptime(week, '%b-%d-%Y')
+        for_text = ' from back in the week of %s' % makeDate(weektime)
 
       self.track_name = for_text.replace(' for ', '').capitalize()
-      self.intro_text = 'Welcome to hype machine robot radio %s' % (for_text)
-        
+      if 'week:' in args.when:
+        self.intro_text = 'Welcome to hype machine robot radio ... time machine ... %s' % (for_text)
+      else:
+        self.intro_text = 'Welcome to hype machine robot radio %s' % (for_text)
+          
     elif args.mode == 'favorites':
       self.mode = 'users/%s/favorites' % (args.user)
       url = 'https://api.hypem.com/api/get_profile?username=%s&key=%s' % (args.user, HYPE_KEY)
@@ -402,7 +465,10 @@ class HypePodGenerator():
 
     if args.feedonly:
       self.voice = 'feedonly'
-    self.relative_dir = os.path.join(self.mode, self.voice)
+    if 'week:' in self.mode:
+      self.relative_dir = os.path.join('timemachine', self.voice)
+    else:
+      self.relative_dir = os.path.join(self.mode, self.voice)
     if not os.path.exists(args.basedir):
       print 'basedir %s doesn\'t exist' % args.basedir
       sys.exit(1)
@@ -444,7 +510,7 @@ def main():
 
   parser = argparse.ArgumentParser(description='Make a hypecast.')
   parser.add_argument('--mode', '-m', nargs='?', help='mode: popular, favorites', default='popular', choices= ['popular', 'favorites'])
-  parser.add_argument('--when', '-w', nargs='?', help='when to fetch popular', choices=['lastweek', 'noremix', 'now', '3day'], default='lastweek')
+  parser.add_argument('--when', '-w', nargs='?', help='when to fetch popular -- choices are lastweek, now, 3day, noremix, or week:MMM-DD-YYYY', default='lastweek')
   parser.add_argument('--voice', '-v', help='what voice to use', default='Ava', choices=voices + ['Ava',])
   parser.add_argument('--user', '-u', nargs='?', help='user for favorites mode')
   parser.add_argument('--basedir', '-d', nargs='?', default = './hypecasts', help='where to output finished data to')
