@@ -74,8 +74,13 @@ def unicodeify(v):
   return v.decode('u')
 
 def fetchPage(url, params):
+  print url 
+  print params
   data = urllib.urlencode(dict([k, v.encode('utf-8')] for k, v in params.items()))
+  print data
+  method = "GET"
   request  = urllib2.Request(url, data)
+  request.get_method = lambda: method
   request.add_header("User-Agent", "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11" )
   return urllib2.urlopen(request).read()
 
@@ -112,7 +117,7 @@ class HypePodGenerator():
       print 'fetching again, page %d' % page
 
       params = {
-        'page': page,
+        'page': str(page),
         'key': HYPE_KEY
       }
       mode = self.mode
@@ -124,14 +129,23 @@ class HypePodGenerator():
         url = base_url + 'popular'
         params['mode'] = parts[1]
 
-      url = url + '?' + urllib.urlencode(params)
       try:
-        response = fetchPage(url, {})
-        return json.loads(response)
+        response = fetchPage(url, params)
+        print response
+        tracks = json.loads(response)
+        for t in tracks:
+          t['stream_pub'] =  'http://hypem.com/serve/public/%s' % t['itemid']
+          print t['stream_pub']
+          ret_songs.append(t)
+      except URLError, e:
+        print e.reason
+        sys.exit(1)
       except:
         print  sys.exc_info()[0]
         print 'No more songs on page %s' % page
+        sys.exit(1)
         return []
+    return ret_songs
    
   def get_tts_mp3(self, sent, fname=None):
       lang = 'en'
@@ -154,7 +168,7 @@ class HypePodGenerator():
       if not os.path.exists(filepath):
         try:
           headers = { 'User-Agent' : 'Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11' }
-          url = s['stream_pub']
+          url = s['stream_pub'] 
           request = urllib2.Request(url, None, headers)
           req = urllib2.urlopen(request)
           with open(filepath, 'wb') as fp:
@@ -163,7 +177,7 @@ class HypePodGenerator():
           print e.code
           print e.fp.read()
           print u'Failed to download %s' % filename
-          print s['stream_pub']
+          print s
           self.songs.remove(s)
         except:
           print u'Failed to download %s' % filename
