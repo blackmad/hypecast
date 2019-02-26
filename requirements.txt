@@ -1,0 +1,4 @@
+feedgen
+python-dotenv
+pydub
+bs4
